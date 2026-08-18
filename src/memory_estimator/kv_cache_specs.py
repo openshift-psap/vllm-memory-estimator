@@ -16,6 +16,7 @@ from vllm.v1.kv_cache_interface import ChunkedLocalAttentionSpec
 from vllm.v1.kv_cache_interface import FullAttentionSpec
 from vllm.v1.kv_cache_interface import MambaSpec
 from vllm.v1.kv_cache_interface import MLAAttentionSpec
+from vllm.v1.kv_cache_interface import SlidingWindowMLASpec
 from vllm.v1.kv_cache_interface import SlidingWindowSpec
 
 from .config_utils import attention_chunk_size as _cfg_attention_chunk_size
@@ -255,6 +256,33 @@ def _chunked_local_bytes(
     return total
 
 
+def _sliding_window_mla_bytes(
+    layers: int,
+    max_active_seqs: int,
+    kv_lora_rank: int,
+    qk_rope_head_dim: int,
+    quant_spec: QuantizationSpec,
+    stub: SimpleNamespace,
+    block_size: int,
+    window: int,
+    fp8_ds_mla: bool,
+) -> float:
+    cache_dtype_str = "fp8_ds_mla" if fp8_ds_mla else None
+    spec = SlidingWindowMLASpec(
+        block_size=block_size,
+        num_kv_heads=1,
+        head_size=kv_lora_rank + qk_rope_head_dim,
+        dtype=_kv_torch_dtype(quant_spec),
+        sliding_window=window,
+        cache_dtype_str=cache_dtype_str,
+    )
+    per_layer = spec.max_memory_usage_bytes(stub)
+    total = per_layer * layers * max_active_seqs
+    if not fp8_ds_mla:
+        total += _quant_scale_bytes(layers, 1, quant_spec)
+    return total
+
+
 def _build_mamba_spec(
     config: Any,
     block_size: int,
@@ -282,10 +310,13 @@ def _build_mamba_spec(
         conv_shape = ((d_conv - 1) * mamba_inter,)
         temporal_shape = (mamba_inter * d_state,)
 
+    mtype = "mamba2" if (mver == 2 or d_state >= 64) else "mamba1"
+
     return MambaSpec(
         block_size=block_size,
         shapes=(conv_shape, temporal_shape),
         dtypes=(td, td),
+        mamba_type=mtype,
     )
 
 
@@ -390,9 +421,12 @@ def _detect_spec_type_from_model_config(model_config) -> str:
     """Use vLLM's ModelConfig for accurate spec type detection."""
     if model_config.is_hybrid:
         return "hybrid"
-    if getattr(model_config, "is_deepseek_mla", False):
+    if getattr(model_config, "use_mla", False):
+        sw = model_config.get_sliding_window()
+        if sw is not None:
+            return "sliding_window_mla"
         return "mla"
-    if getattr(getattr(model_config, "_model_info", None), "has_inner_state", False):
+    if getattr(model_config, "has_inner_state", False):
         return "mamba"
     sw = model_config.get_sliding_window()
     if sw is not None:
@@ -473,6 +507,22 @@ def estimate_kv_cache_bytes_specaware(
             stub, bs, fp8_ds_mla=use_fp8,
         )
         return KVCacheResult(total_bytes=total, spec_type="mla", per_gpu=True)
+
+    if spec_type == "sliding_window_mla":
+        lora_rank = _cfg_kv_lora_rank(config)
+        rope_dim = _cfg_qk_rope_head_dim(config)
+        if model_config is not None and lora_rank == 0:
+            lora_rank = hdim - (rope_dim or 0)
+        window = _cfg_sliding_window(config)
+        if window is None and model_config is not None:
+            window = model_config.get_sliding_window()
+        assert window is not None
+        use_fp8 = quant_spec.kv_cache_dtype.bits == 8
+        total = _sliding_window_mla_bytes(
+            layers_, max_active_seqs, lora_rank, rope_dim, quant_spec,
+            stub, bs, window, fp8_ds_mla=use_fp8,
+        )
+        return KVCacheResult(total_bytes=total, spec_type="sliding_window_mla", per_gpu=True)
 
     if spec_type == "sliding_window":
         window = _cfg_sliding_window(config)

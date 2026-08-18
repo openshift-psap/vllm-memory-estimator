@@ -31,6 +31,7 @@ class MemoryBuckets:
     cuda_graph_bytes: float = 0.0
     block_table_bytes: float = 0.0
     worker_overhead_bytes: float = 0.0
+    cpu_offload_bytes: float = 0.0
     kv_cache_spec_type: str = "full"
 
     @property
@@ -122,6 +123,7 @@ def build_memory_buckets(
     block_size: int | None = None,
     model_config=None,
     parallel_config=None,
+    cpu_offload_gb: float = 0.0,
 ) -> MemoryBuckets:
     tp = tensor_parallel_size
     pp = pipeline_parallel_size
@@ -157,6 +159,9 @@ def build_memory_buckets(
     kv_spec_type = kv_result.spec_type
     workspace = activations * WORKSPACE_FRACTION
 
+    # --- CPU offload ---
+    offload_bytes = cpu_offload_gb * (1024 ** 3)
+
     # --- Per-GPU parameter bytes ---
     # Replicated tensors (vision encoders, projectors) are loaded on every
     # GPU without sharding, so they are NOT divided by TP.
@@ -167,6 +172,7 @@ def build_memory_buckets(
     else:
         params = shardable_bytes / (tp * pp)
     params += replicated_bytes
+    params = max(0.0, params - offload_bytes)
 
     # --- Per-GPU KV cache and activations ---
     if not kv_result.per_gpu:
@@ -187,4 +193,4 @@ def build_memory_buckets(
     worker = float(WORKER_OVERHEAD_BYTES)
 
     return MemoryBuckets(params, activations, kv_cache, workspace, cuda_graph, block_table, worker,
-                         kv_cache_spec_type=kv_spec_type)
+                         cpu_offload_bytes=offload_bytes, kv_cache_spec_type=kv_spec_type)

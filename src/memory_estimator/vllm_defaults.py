@@ -2,7 +2,7 @@
 
 These values are derived from vLLM's runtime behavior and should be updated
 when vLLM changes its memory accounting. Current values are validated against
-vLLM v0.8–v0.18.
+vLLM v0.8–v0.22.
 
 See also: vllm/worker/worker.py, vllm/engine/arg_utils.py
 """

@@ -198,6 +198,9 @@ _CLI_QUANT_DEFAULTS: dict[str, tuple[str, float]] = {
     "bitsandbytes": ("bitsandbytes", 4.0),
     "bnb": ("bitsandbytes", 4.0),
     "marlin": ("marlin", 4.0),
+    "nvfp4": ("nvfp4", 4.0),
+    "mxfp4": ("mxfp4", 4.0),
+    "mxfp8": ("mxfp8", 8.0),
 }
 
 

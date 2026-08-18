@@ -35,6 +35,7 @@ class EstimatorInputs:
     enable_expert_parallel: bool = False
     block_size: int | None = None
     quantization: str | None = None
+    cpu_offload_gb: float = 0.0
     use_cache: bool = True
 
 
@@ -173,6 +174,7 @@ def prepare_summary(inputs: EstimatorInputs) -> ModelSummary:
         non_expert_bytes=non_expert_bytes,
         replicated_bytes=replicated_bytes,
         block_size=inputs.block_size,
+        cpu_offload_gb=inputs.cpu_offload_gb,
     )
 
 
@@ -196,6 +198,7 @@ def estimate_memory(summary: ModelSummary) -> MemoryEstimate:
         block_size=summary.block_size,
         model_config=summary.model_config,
         parallel_config=summary.parallel_config,
+        cpu_offload_gb=summary.cpu_offload_gb,
     )
     return build_estimate(
         summary.model_id, buckets,

@@ -53,7 +53,7 @@ pip install -e ".[dev]"
 ### Dependencies
 
 - `huggingface_hub>=0.20.0` — model config and safetensors header fetching
-- `vllm>=0.9.0` — `ModelConfig` for architecture detection and `KVCacheSpec`
+- `vllm>=0.20.0` — `ModelConfig` for architecture detection and `KVCacheSpec`
   classes for cache estimation (CPU only, no GPU required)
 
 ## Usage
@@ -186,6 +186,8 @@ Unknown flags (e.g. `--host`, `--port`) are silently ignored.
 | `--max-num-batched-tokens` | Tokens per forward pass (controls activation sizing) |
 | `--quantization` / `-q` | Quantization method override |
 | `--revision` | Model revision / branch |
+| `--cpu-offload-gb` | Offload this many GiB of weights to CPU (reduces GPU memory) |
+| `--cudagraph-capture-sizes` | Comma-separated CUDA graph batch sizes (e.g. `1,2,4,8`) |
 
 ### Python API
 
@@ -268,8 +270,8 @@ with `nominal_gib`, `lower_gib`, and `upper_gib` fields:
 
 5. **KV cache estimation** — Uses vLLM's actual `KVCacheSpec` classes
    (`FullAttentionSpec`, `SlidingWindowSpec`, `MLAAttentionSpec`,
-   `ChunkedLocalAttentionSpec`, `MambaSpec`) for accurate cache sizing.
-   Supports hybrid models with mixed layer types.
+   `SlidingWindowMLASpec`, `ChunkedLocalAttentionSpec`, `MambaSpec`) for
+   accurate cache sizing. Supports hybrid models with mixed layer types.
 
 6. **vLLM overhead estimation** — Models three runtime components:
    - **CUDA graphs**: proportional to parameter size and layer count
@@ -376,16 +378,18 @@ includes most decoder-only architectures:
 - LLaMA / Llama 2 / Llama 3 / Llama 4 family
 - GPT-2 / GPT-NeoX / OPT
 - Mistral / Mixtral (MoE)
-- DeepSeek V2 / V3 / V4 / R1 (MLA + MoE)
+- DeepSeek V2 / V3 / V4 / R1 (MLA + MoE, including NVFP4)
 - Qwen / Qwen2 / Qwen3 / Qwen3-VL / Qwen3.5 (including MoE)
 - Phi / Phi-3
 - Falcon / Falcon-H1 (hybrid Mamba)
 - Gemma / Gemma-4 (sliding window)
 - Jamba (hybrid Mamba + Attention)
 - Nemotron-H (hybrid Mamba + Attention)
-- Kimi-K2 / MiniMax (MLA)
+- Kimi-K2 / MiniMax (MLA, sliding window MLA)
+- MiniCPM-V 4.6 / InternS2 / OpenVLA
+- Cohere MoE / EXAONE-4.5
 
-Quantized checkpoints (GPTQ, AWQ, compressed-tensors, FP8, MXFP4) are handled
+Quantized checkpoints (GPTQ, AWQ, compressed-tensors, FP8, NVFP4, MXFP4) are handled
 automatically when `quantization_config` is present in the model config.
 
 ## Validation

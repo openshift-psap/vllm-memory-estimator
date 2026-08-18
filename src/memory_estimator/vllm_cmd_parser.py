@@ -25,6 +25,8 @@ def _build_vllm_parser() -> argparse.ArgumentParser:
     parser.add_argument("--enable-expert-parallel", action="store_true", default=False)
     parser.add_argument("--block-size", type=int, default=None)
     parser.add_argument("--quantization", "-q", default=None)
+    parser.add_argument("--cpu-offload-gb", type=float, default=0.0)
+    parser.add_argument("--cudagraph-capture-sizes", default=None)
     return parser
 
 
@@ -47,13 +49,17 @@ def parse_vllm_command(cmd: str) -> EstimatorInputs:
     if not model_id:
         raise ValueError("No model specified in vllm serve command")
 
+    cudagraph_sizes = None
+    if parsed.cudagraph_capture_sizes is not None:
+        cudagraph_sizes = [int(s) for s in parsed.cudagraph_capture_sizes.split(",")]
+
     return EstimatorInputs(
         model_id=model_id,
         max_seq_len=parsed.max_model_len,
         max_active_seqs=parsed.max_num_seqs,
         revision=parsed.revision,
         enforce_eager=parsed.enforce_eager,
-        cudagraph_capture_sizes=None,
+        cudagraph_capture_sizes=cudagraph_sizes,
         max_num_batched_tokens=parsed.max_num_batched_tokens,
         kv_cache_dtype=parsed.kv_cache_dtype,
         dtype=parsed.dtype,
@@ -63,4 +69,5 @@ def parse_vllm_command(cmd: str) -> EstimatorInputs:
         enable_expert_parallel=parsed.enable_expert_parallel,
         block_size=parsed.block_size,
         quantization=parsed.quantization,
+        cpu_offload_gb=parsed.cpu_offload_gb,
     )

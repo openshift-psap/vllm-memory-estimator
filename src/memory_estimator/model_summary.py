@@ -34,6 +34,7 @@ class ModelSummary:
     non_expert_bytes: int = 0
     replicated_bytes: int = 0
     block_size: int | None = None
+    cpu_offload_gb: float = 0.0
 
     @property
     def parameter_count(self) -> int:
