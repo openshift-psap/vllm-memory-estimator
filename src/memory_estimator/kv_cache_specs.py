@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import torch
+from vllm.v1.attention.backends.registry import MambaAttentionBackendEnum
 from vllm.v1.kv_cache_interface import ChunkedLocalAttentionSpec
 from vllm.v1.kv_cache_interface import FullAttentionSpec
 from vllm.v1.kv_cache_interface import MambaSpec
@@ -44,7 +45,7 @@ from .vllm_defaults import DEFAULT_MAX_NUM_BATCHED_TOKENS
 
 # Mamba2 models that use Mamba2-style state shapes.
 _MAMBA2_MODEL_TYPES = frozenset({
-    "mamba2", "bamba", "falcon_h1", "plamo2", "falcon_hybrid",
+    "mamba2", "falcon_h1", "falcon_hybrid",
     "granitemoehybrid", "nemotron_h",
 })
 
@@ -89,6 +90,7 @@ def _config_stub(max_model_len: int, max_num_batched_tokens: int) -> SimpleNames
             max_num_batched_tokens=max_num_batched_tokens,
         ),
         cache_config=SimpleNamespace(mamba_cache_mode="all"),
+        max_in_flight_tokens=max_num_batched_tokens,
     )
 
 
@@ -310,7 +312,8 @@ def _build_mamba_spec(
         conv_shape = ((d_conv - 1) * mamba_inter,)
         temporal_shape = (mamba_inter * d_state,)
 
-    mtype = "mamba2" if (mver == 2 or d_state >= 64) else "mamba1"
+    mtype = (MambaAttentionBackendEnum.MAMBA2 if (mver == 2 or d_state >= 64)
+             else MambaAttentionBackendEnum.MAMBA1)
 
     return MambaSpec(
         block_size=block_size,

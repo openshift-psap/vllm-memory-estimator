@@ -14,10 +14,10 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "huggingface_hub>=0.20.0",
-    # vLLM ≥0.20 required for stable ModelConfig/ParallelConfig APIs,
-    # KVCacheSpec classes (including SlidingWindowMLASpec), has_inner_state
-    # property, use_mla detection, and cpu_offload_gb support.
-    "vllm>=0.20.0",
+    # vLLM ≥0.27 required for MambaAttentionBackendEnum in MambaSpec,
+    # max_in_flight_tokens in SlidingWindowSpec/ChunkedLocalAttentionSpec,
+    # and stable ModelConfig/ParallelConfig/KVCacheSpec APIs.
+    "vllm>=0.27.0",
 ]
 
 [project.optional-dependencies]
@@ -29,9 +29,18 @@ web = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
 ]
+lambda = [
+    "fastapi>=0.115.0",
+    "mangum>=0.19.0",
+]
+mcp = [
+    "mcp[cli]>=1.0.0",
+]
 
 [project.scripts]
 memory-estimator = "memory_estimator.cli:main"
+memory-estimator-api = "memory_estimator.api.app:run"
+memory-estimator-mcp = "memory_estimator.mcp_server:mcp.run"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -406,6 +406,68 @@ def test_pure_mamba2_orchestrator():
     assert result.total_bytes > 0
 
 
+def test_mamba_spec_uses_backend_enum():
+    """MambaSpec should use MambaAttentionBackendEnum, not plain strings."""
+    from vllm.v1.attention.backends.registry import MambaAttentionBackendEnum
+
+    from memory_estimator.kv_cache_specs import _build_mamba_spec
+
+    spec1 = _build_mamba_spec(PureMamba1Config(), block_size=16,
+                              quant_spec=parse_quantization(PureMamba1Config()))
+    assert spec1.mamba_type == MambaAttentionBackendEnum.MAMBA1
+
+    spec2 = _build_mamba_spec(PureMamba2Config(), block_size=16,
+                              quant_spec=parse_quantization(PureMamba2Config()))
+    assert spec2.mamba_type == MambaAttentionBackendEnum.MAMBA2
+
+
+def test_mamba_spec_d_state_fallback_to_mamba2():
+    """Models with d_state >= 64 should get MAMBA2 enum even if model_type is unknown."""
+    from vllm.v1.attention.backends.registry import MambaAttentionBackendEnum
+
+    from memory_estimator.kv_cache_specs import _build_mamba_spec
+
+    cfg = BambaConfig()
+    spec = _build_mamba_spec(cfg, block_size=16, quant_spec=parse_quantization(cfg))
+    assert spec.mamba_type == MambaAttentionBackendEnum.MAMBA2
+
+
+def test_removed_model_types_not_detected_as_mamba():
+    """Model types removed from vLLM (bamba, plamo2) should not be detected as pure mamba."""
+    from memory_estimator.kv_cache_specs import _MAMBA1_MODEL_TYPES
+    from memory_estimator.kv_cache_specs import _MAMBA2_MODEL_TYPES
+
+    assert "bamba" not in _MAMBA2_MODEL_TYPES
+    assert "plamo2" not in _MAMBA2_MODEL_TYPES
+    assert "bamba" not in _MAMBA1_MODEL_TYPES
+
+
+def test_sliding_window_max_in_flight_tokens():
+    """Larger max_num_batched_tokens increases sliding window KV via max_in_flight_tokens."""
+    cfg = SlidingWindowConfig()
+    quant_spec = parse_quantization(cfg)
+    small = estimate_kv_cache_bytes_specaware(
+        cfg, 4, 32768, quant_spec, block_size=16, max_num_batched_tokens=1024,
+    )
+    large = estimate_kv_cache_bytes_specaware(
+        cfg, 4, 32768, quant_spec, block_size=16, max_num_batched_tokens=8192,
+    )
+    assert large.total_bytes > small.total_bytes
+
+
+def test_chunked_local_max_in_flight_tokens():
+    """Larger max_num_batched_tokens increases chunked local KV via max_in_flight_tokens."""
+    cfg = ChunkedLocalConfig()
+    quant_spec = parse_quantization(cfg)
+    small = estimate_kv_cache_bytes_specaware(
+        cfg, 4, 131072, quant_spec, block_size=16, max_num_batched_tokens=1024,
+    )
+    large = estimate_kv_cache_bytes_specaware(
+        cfg, 4, 131072, quant_spec, block_size=16, max_num_batched_tokens=8192,
+    )
+    assert large.total_bytes > small.total_bytes
+
+
 # ---------------------------------------------------------------------------
 # Formula tests — hybrid models
 # ---------------------------------------------------------------------------

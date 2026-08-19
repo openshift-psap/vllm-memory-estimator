@@ -53,7 +53,7 @@ pip install -e ".[dev]"
 ### Dependencies
 
 - `huggingface_hub>=0.20.0` — model config and safetensors header fetching
-- `vllm>=0.20.0` — `ModelConfig` for architecture detection and `KVCacheSpec`
+- `vllm>=0.27.0` — `ModelConfig` for architecture detection and `KVCacheSpec`
   classes for cache estimation (CPU only, no GPU required)
 
 ## Usage
@@ -379,15 +379,16 @@ includes most decoder-only architectures:
 - GPT-2 / GPT-NeoX / OPT
 - Mistral / Mixtral (MoE)
 - DeepSeek V2 / V3 / V4 / R1 (MLA + MoE, including NVFP4)
-- Qwen / Qwen2 / Qwen3 / Qwen3-VL / Qwen3.5 (including MoE)
+- Qwen / Qwen2 / Qwen3 / Qwen3-VL / Qwen3.5 / Qwen3.5-MoE (including MoE)
 - Phi / Phi-3
 - Falcon / Falcon-H1 (hybrid Mamba)
 - Gemma / Gemma-4 (sliding window)
 - Jamba (hybrid Mamba + Attention)
 - Nemotron-H (hybrid Mamba + Attention)
-- Kimi-K2 / MiniMax (MLA, sliding window MLA)
+- Kimi-K2 / Kimi-K3 / MiniMax-M3 (MLA, sliding window MLA)
+- Inkling (relative attention)
 - MiniCPM-V 4.6 / InternS2 / OpenVLA
-- Cohere MoE / EXAONE-4.5
+- Cohere MoE / EXAONE-4.5 / K-EXAONE-2.0
 
 Quantized checkpoints (GPTQ, AWQ, compressed-tensors, FP8, NVFP4, MXFP4) are handled
 automatically when `quantization_config` is present in the model config.
