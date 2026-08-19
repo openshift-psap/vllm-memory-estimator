@@ -3,10 +3,14 @@ from __future__ import annotations
 
 from importlib.metadata import version
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from .cpu_compat import patch as _patch_cpu_compat
 
-from .routes import router
+_patch_cpu_compat()
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+from .routes import router  # noqa: E402
 
 app = FastAPI(
     title="vLLM Memory Estimator API",
@@ -30,6 +34,13 @@ def health() -> dict:
 
 
 def run() -> None:
+    import os
+
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+if __name__ == "__main__":
+    run()
