@@ -1,5 +1,7 @@
 # vllm-memory-estimator
 
+[![GitHub](https://img.shields.io/github/stars/ashishkamra/vllm-memory-estimator)](https://github.com/ashishkamra/vllm-memory-estimator)
+
 Estimates GPU memory requirements for serving Hugging Face models with
 [vLLM](https://github.com/vllm-project/vllm). Two modes:
 
