@@ -1,0 +1,15 @@
+.git/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.venv/
+.ruff_cache/
+web/
+tests/
+test_data/
+node_modules/
+*.egg
+.claude/

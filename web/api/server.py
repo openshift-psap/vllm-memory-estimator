@@ -1,7 +1,7 @@
 """FastAPI backend for the vLLM memory estimator web UI."""
 from __future__ import annotations
 
-import traceback
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from memory_estimator.budget import compute_budget
 from memory_estimator.estimator import EstimatorInputs
 from memory_estimator.estimator import estimate_from_inputs
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="vLLM Memory Estimator API")
 app.add_middleware(
@@ -24,6 +26,7 @@ class EstimateRequest(BaseModel):
     model_id: str
     max_seq_len: int | None = None
     max_active_seqs: int = 256
+    revision: str | None = None
     dtype: str | None = None
     kv_cache_dtype: str | None = None
     quantization: str | None = None
@@ -34,6 +37,8 @@ class EstimateRequest(BaseModel):
     enforce_eager: bool = False
     block_size: int | None = None
     max_num_batched_tokens: int | None = None
+    cudagraph_capture_sizes: list[int] | None = None
+    cpu_offload_gb: float = 0.0
 
 
 class BudgetRequest(BaseModel):
@@ -48,6 +53,7 @@ class BudgetRequest(BaseModel):
     kv_cache_dtype: str | None = None
     enforce_eager: bool = False
     block_size: int | None = None
+    revision: str | None = None
     seq_lengths: list[int] | None = None
     seq_counts: list[int] | None = None
     max_num_batched_tokens: int | None = None
@@ -60,6 +66,7 @@ def api_estimate(req: EstimateRequest) -> dict:
             model_id=req.model_id,
             max_seq_len=req.max_seq_len,
             max_active_seqs=req.max_active_seqs,
+            revision=req.revision,
             dtype=req.dtype,
             kv_cache_dtype=req.kv_cache_dtype,
             quantization=req.quantization,
@@ -70,6 +77,8 @@ def api_estimate(req: EstimateRequest) -> dict:
             enforce_eager=req.enforce_eager,
             block_size=req.block_size,
             max_num_batched_tokens=req.max_num_batched_tokens,
+            cudagraph_capture_sizes=req.cudagraph_capture_sizes,
+            cpu_offload_gb=req.cpu_offload_gb,
         )
         summary, estimate = estimate_from_inputs(inputs)
         return {
@@ -88,7 +97,8 @@ def api_estimate(req: EstimateRequest) -> dict:
             "estimate": estimate.as_dict(),
         }
     except Exception as exc:
-        return {"ok": False, "error": str(exc), "traceback": traceback.format_exc()}
+        logger.exception("Estimation failed for %s", req.model_id)
+        return {"ok": False, "error": str(exc)}
 
 
 @app.post("/api/budget")
@@ -106,10 +116,12 @@ def api_budget(req: BudgetRequest) -> dict:
             kv_cache_dtype=req.kv_cache_dtype,
             enforce_eager=req.enforce_eager,
             block_size=req.block_size,
+            revision=req.revision,
             seq_lengths=req.seq_lengths,
             seq_counts=req.seq_counts,
             max_num_batched_tokens=req.max_num_batched_tokens,
         )
         return {"ok": True, **result.as_dict()}
     except Exception as exc:
-        return {"ok": False, "error": str(exc), "traceback": traceback.format_exc()}
+        logger.exception("Budget computation failed for %s", req.model_id)
+        return {"ok": False, "error": str(exc)}

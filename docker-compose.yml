@@ -1,0 +1,7 @@
+services:
+  lambda:
+    build: .
+    ports:
+      - "9000:8080"
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
